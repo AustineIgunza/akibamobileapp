@@ -1,0 +1,12 @@
+﻿Akiba Android phone testing
+
+1. Copy Akiba-test.apk to your Android phone and install it (Android 7.0 or newer).
+2. Connect the phone and this computer to the same Wi-Fi.
+3. Keep the Akiba backend running on this computer, port 4000.
+4. On the phone, open http://192.168.2.67:4000/api/health in its browser. A JSON response with status ok confirms reachability.
+5. Open Akiba > Settings. Set API server address to http://192.168.2.67:4000 and save.
+6. Sign in using your existing Akiba account or create a test account.
+
+The computer's Wi-Fi address may change. The database currently runs locally on this computer; the app accesses it through the backend API. Away-from-home testing requires a reachable hosted HTTPS backend and database connectivity. No database password belongs in the APK.
+
+If the phone cannot open the health address, check Wi-Fi client isolation and whether Windows Firewall allows the backend on your private network.
