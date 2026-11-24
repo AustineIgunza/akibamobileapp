@@ -9,7 +9,11 @@ import kotlin.math.exp
  * On-device Multinomial Naive Bayes categorizer (v3).
  * Uses description keywords + KES amount bins + time features.
  */
-class AkibaCategorizer(context: Context) {
+class AkibaCategorizer(modelJson: String) {
+
+    constructor(context: Context) : this(
+        context.assets.open("model.json").bufferedReader().use { it.readText() }
+    )
 
     private val classes: List<String>
     private val classLogPrior: List<Double>
@@ -21,8 +25,7 @@ class AkibaCategorizer(context: Context) {
     private val vocabulary: List<String>
 
     init {
-        val json = context.assets.open("model.json").bufferedReader().readText()
-        val model = JSONObject(json)
+        val model = JSONObject(modelJson)
         classes = model.getJSONArray("classes").let { a -> (0 until a.length()).map { a.getString(it) } }
         classLogPrior = model.getJSONArray("class_log_prior").let { a -> (0 until a.length()).map { a.getDouble(it) } }
         features = model.getJSONArray("features").let { a -> (0 until a.length()).map { a.getString(it) } }
@@ -52,12 +55,19 @@ class AkibaCategorizer(context: Context) {
 
     private val dayNames = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
 
+    /**
+     * Picks up to [MAX_KEYWORDS] known vocabulary words from a free-text description.
+     *
+     * Training descriptions contain only category words, but people type sentences such as
+     * "Paid for lunch at Java House". Keeping only vocabulary words before taking the first
+     * few stops filler words ("paid", "for", "the") from using up every keyword slot.
+     */
     private fun extractKeywords(description: String): Set<String> {
         return description.lowercase()
-            .replace(",", "").replace(".", "")
-            .split("\\s+".toRegex())
-            .filter { it.length >= 3 }
-            .take(3)
+            .replace(PUNCTUATION, " ")
+            .split(WHITESPACE)
+            .filter { it.length >= 3 && it in vocabulary }
+            .take(MAX_KEYWORDS)
             .toSet()
     }
 
@@ -134,7 +144,7 @@ class AkibaCategorizer(context: Context) {
         val dayName = values["day_of_week"]!!
         val amountBin = values["amount_bin"]!!
         val isWeekend = values["is_weekend"] == "1"
-        val matchedKws = extractKeywords(description).filter { it in vocabulary }
+        val matchedKws = extractKeywords(description)
 
         val parts = mutableListOf<String>()
         parts.add("The model predicts \"$category\" with $pct% confidence.")
@@ -160,5 +170,9 @@ class AkibaCategorizer(context: Context) {
 
     companion object {
         const val LOW_CONFIDENCE = 0.5
+        private const val MAX_KEYWORDS = 3
+        // Keeps letters, digits and hyphens so vocabulary words such as "x-ray" survive.
+        private val PUNCTUATION = "[^\\p{L}\\p{N}\\s-]".toRegex()
+        private val WHITESPACE = "\\s+".toRegex()
     }
 }
